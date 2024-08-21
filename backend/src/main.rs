@@ -74,7 +74,6 @@ async fn upload_audio<'r>(
         let bucket = "audio-wav-rust";
         let key = format!("audio_{}.wav", index);
 
-        // Upload to S3
         s3::upload_to_s3(&guard.s3_client, bucket, &key, &file_path)
             .await
             .map_err(|e| status::Custom(Status::InternalServerError, e.to_string()))?;
