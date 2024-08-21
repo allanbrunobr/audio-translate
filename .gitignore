@@ -1,0 +1,18 @@
+# Backend
+/backend/target/
+/backend/Cargo.lock
+/backend/**/*.rs.bk
+
+# Frontend (exemplo para projetos Node.js)
+/frontend/node_modules/
+/frontend/.env
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
