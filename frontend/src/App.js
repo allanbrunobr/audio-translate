@@ -1,9 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Recorder from './utils/recorder';
 import './App.css';
 import axios from 'axios';
-import AwsTranscribeImage from './assets/AWS_Transcribe.jpg'; // Atualizar o caminho para o diretório correto
-
+import AwsTranscribeImage from './assets/AWS_Transcribe.jpg';
 
 const App = () => {
     const [isRecording, setIsRecording] = useState(false);
@@ -12,13 +11,30 @@ const App = () => {
     const [medicalText, setMedicalText] = useState("");
     const [medicalAnalysis, setMedicalAnalysis] = useState("");
     const [activeSection, setActiveSection] = useState(null);
+    const [recordingTime, setRecordingTime] = useState(0);
     const audioContextRef = useRef(null);
     const gumStreamRef = useRef(null);
     const recorderRef = useRef(null);
+    const removeRecording = (index) => {
+        setRecordings(prevRecordings => prevRecordings.filter((_, i) => i !== index));
+    };
+
+    useEffect(() => {
+        let interval;
+        if (isRecording && !isPaused) {
+            interval = setInterval(() => {
+                setRecordingTime((prevTime) => prevTime + 1);
+            }, 1000);
+        } else {
+            clearInterval(interval);
+        }
+        return () => clearInterval(interval);
+    }, [isRecording, isPaused]);
 
     const startRecording = async () => {
         setIsRecording(true);
         setIsPaused(false);
+        setRecordingTime(0);
 
         const constraints = { audio: true, video: false };
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -77,7 +93,7 @@ const App = () => {
                     'Content-Type': 'text/plain'
                 }
             });
-            console.log('Response:', response.data); // Verifique a resposta no console
+            console.log('Response:', response.data);
             setMedicalAnalysis(response.data);
         } catch (error) {
             console.error('Error analyzing medical text:', error);
@@ -94,44 +110,49 @@ const App = () => {
             <header className="navbar navbar-expand-lg navbar-light bg-light">
                 <div className="collapse navbar-collapse" id="navbarNav">
                     <ul className="navbar-nav">
-                        <li className="nav-item"><button className="nav-link btn-link" onClick={() => scrollToSection('vision')}>Vision</button></li>
-                        <li className="nav-item"><button className="nav-link btn-link" onClick={() => scrollToSection('ecosystem')}>Ecosystem</button></li>
-                        <li className="nav-item"><button className="nav-link btn-link" onClick={() => scrollToSection('use-cases')}>Use Cases</button></li>
-                        <li className="nav-item"><button className="nav-link btn-link" onClick={() => scrollToSection('token')}>Token</button></li>
-                        <li className="nav-item"><button className="nav-link btn-link" onClick={() => scrollToSection('impact-report')}>Impact Report</button></li>
                         <li className="nav-item"><button className="nav-link btn-link" onClick={() => scrollToSection('audio-recorder')}>Audio Recorder</button></li>
-                        <li className="nav-item"><button className="nav-link btn-link" onClick={() => scrollToSection('medical-text-analysis')}>Medical Text Analysis</button></li>
                     </ul>
                 </div>
             </header>
             <main>
                 <section id="vision" className="partners text-center mt-5">
-                    <p>Trusted by</p>
-                    <div className="d-flex justify-content-center">
-                        <img src="bosch-logo.png" alt="Bosch" className="mx-2" />
-                        <img src="mastercard-logo.png" alt="Mastercard" className="mx-2" />
-                        <img src="airbus-logo.png" alt="Airbus" className="mx-2" />
-                        <img src="continental-logo.png" alt="Continental" className="mx-2" />
-                        <img src="ntt-logo.png" alt="NTT" className="mx-2" />
-                    </div>
                 </section>
                 {activeSection === 'audio-recorder' && (
                     <section id="audio-recorder" className="audio-recorder-section">
                         <img src={AwsTranscribeImage} alt="AWS Transcribe" className="avatar"/>
                         <h2>Audio Recorder</h2>
                         <div id="controls">
-                        <button className="btn btn-primary" onClick={startRecording} disabled={isRecording}>Record</button>
+                            <button
+                                className={`btn ${isRecording ? 'btn-danger' : 'btn-primary'}`}
+                                onClick={startRecording}
+                                disabled={isRecording}
+                            >
+                                {isRecording ? 'Recording...' : 'Record'}
+                            </button>
                             <button className="btn btn-primary" onClick={pauseRecording} disabled={!isRecording}>
                                 {isPaused ? 'Resume' : 'Pause'}
                             </button>
                             <button className="btn btn-primary" onClick={stopRecording} disabled={!isRecording}>Stop</button>
                         </div>
+                        {isRecording && !isPaused && (
+                            <div className="recording-indicator">
+                                <span className="pulse"></span> Recording...
+                            </div>
+                        )}
+                        {isRecording && (
+                            <div className="recording-time">
+                                {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                            </div>
+                        )}
                         <p><strong>Recordings:</strong></p>
                         <ol id="recordingsList">
                             {recordings.map((recording, index) => (
                                 <li key={index}>
                                     <audio controls src={recording.url}></audio>
-                                    <a href={recording.url} download={recording.filename}>Save to disk</a>
+                                    <button className="btn btn-danger btn-sm"
+                                            onClick={() => removeRecording(index)}>Remove
+                                    </button>
+
                                 </li>
                             ))}
                         </ol>
@@ -139,24 +160,6 @@ const App = () => {
                             <button className="btn btn-primary" onClick={uploadRecordings}>Transcribe Recording(s) to Text</button>
                         )}
                         <div id="formats">The transcriptions will be stored in the '/transcripts' folder.</div>
-                    </section>
-                )}
-                {activeSection === 'medical-text-analysis' && (
-                    <section id="medical-text-analysis" className="text-center mt-5">
-                        <h2>Medical Text Analysis</h2>
-                        <textarea
-                            value={medicalText}
-                            onChange={(e) => setMedicalText(e.target.value)}
-                            placeholder="Enter medical text here..."
-                            rows="4"
-                            cols="50"
-                        ></textarea>
-                        <br />
-                        <button className="btn btn-primary" onClick={handleMedicalAnalysis}>Analyze Medical Text</button>
-                        <div id="medical-analysis-result">
-                            <h3>Analysis Result:</h3>
-                            <pre>{medicalAnalysis}</pre>
-                        </div>
                     </section>
                 )}
             </main>
