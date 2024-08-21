@@ -8,8 +8,6 @@ const App = () => {
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [recordings, setRecordings] = useState([]);
-    const [medicalText, setMedicalText] = useState("");
-    const [medicalAnalysis, setMedicalAnalysis] = useState("");
     const [activeSection, setActiveSection] = useState(null);
     const [recordingTime, setRecordingTime] = useState(0);
     const audioContextRef = useRef(null);
@@ -86,20 +84,6 @@ const App = () => {
         }
     };
 
-    const handleMedicalAnalysis = async () => {
-        try {
-            const response = await axios.post('http://localhost:8000/analyze_medical_text', medicalText, {
-                headers: {
-                    'Content-Type': 'text/plain'
-                }
-            });
-            console.log('Response:', response.data);
-            setMedicalAnalysis(response.data);
-        } catch (error) {
-            console.error('Error analyzing medical text:', error);
-            setMedicalAnalysis('Error analyzing text');
-        }
-    };
 
     const scrollToSection = (sectionId) => {
         setActiveSection(sectionId);

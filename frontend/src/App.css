@@ -131,21 +131,6 @@ header {
   margin-bottom: 10px;
 }
 
-#medical-text-analysis {
-  text-align: center;
-  margin-top: 20px;
-}
-
-#medical-text-analysis textarea {
-  width: 100%;
-  max-width: 600px;
-}
-
-#medical-analysis-result {
-  text-align: center;
-  margin-top: 20px;
-}
-
 .audio-recorder-section {
   background-color: #000;
   color: #fff;
