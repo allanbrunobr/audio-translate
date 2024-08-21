@@ -7,7 +7,6 @@ mod utils;
 
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_comprehend::Client as ComprehendClient;
-use aws_sdk_comprehendmedical::Client as ComprehendClientMedical;
 use aws_sdk_s3::Client as S3Client;
 use aws_sdk_transcribe::Client as TranscribeClient;
 use rocket::form::Form;
@@ -27,7 +26,6 @@ struct AppState {
     s3_client: Arc<S3Client>,
     transcribe_client: Arc<TranscribeClient>,
     comprehend_client: Arc<ComprehendClient>,
-    comprehend_client_medical: Arc<ComprehendClientMedical>,
 }
 
 #[derive(FromForm)]
@@ -119,51 +117,6 @@ async fn upload_audio<'r>(
     Ok(status::Custom(Status::Ok, Json(file_urls)))
 }
 
-/// Analyzes medical text using AWS Comprehend Medical to detect entities.
-///
-/// This function takes a medical text as input, sends it to AWS Comprehend Medical
-/// for entity detection, and returns the detected entities or a message indicating
-/// that no entities were found.
-///
-/// # Parameters
-///
-/// * `text` - A `String` containing the medical text to be analyzed.
-/// * `state` - A reference to the `State` containing the shared `AppState`,
-///             which includes the AWS Comprehend Medical client.
-///
-/// # Returns
-///
-/// A `Result` containing either:
-/// - `Ok(status::Custom<String>)` with a status code of 200 (OK) and either:
-///   - A string of formatted entities, each on a new line, if entities were found.
-///   - The message "No entities found." if no entities were detected.
-/// - `Err(status::Custom<String>)` with a status code of 500 (Internal Server Error)
-///   and an error message if the analysis failed.
-#[rocket::post("/analyze_medical_text", data = "<text>")]
-async fn analyze_medical_text(
-    text: String,
-    state: &State<Arc<Mutex<AppState>>>,
-) -> Result<status::Custom<String>, status::Custom<String>> {
-    let guard = state.lock().await;
-    let client = &guard.comprehend_client_medical;
-
-    let result = client
-        .detect_entities_v2()
-        .text(text)
-        .send()
-        .await
-        .map_err(|e| status::Custom(Status::InternalServerError, e.to_string()))?;
-
-        let entities = result.entities();
-        let formatted_entities: Vec<String> = entities.iter().map(|entity| format!("{:?}", entity)).collect();
-
-        if formatted_entities.is_empty() {
-            Ok(status::Custom(Status::Ok, "No entities found.".to_string()))
-        } else {
-            Ok(status::Custom(Status::Ok, formatted_entities.join("\n")))
-        }
-}
-
 /// Launches a Rocket web server with the specified routes and middleware.
 ///
 /// # Purpose
@@ -185,14 +138,11 @@ async fn rocket() -> _ {
     let s3_client = S3Client::new(&shared_config);
     let transcribe_client = TranscribeClient::new(&shared_config);
     let comprehend_client = ComprehendClient::new(&shared_config);
-    let comprehend_client_medical = ComprehendClientMedical::new(&shared_config);
-
     // Create a shared application state using Arc and Mutex
     let state = Arc::new(Mutex::new(AppState {
         s3_client: Arc::new(s3_client),
         transcribe_client: Arc::new(transcribe_client),
         comprehend_client: Arc::new(comprehend_client),
-        comprehend_client_medical: Arc::new(comprehend_client_medical),
     }));
 
     // Configure CORS allowed methods
@@ -213,5 +163,5 @@ async fn rocket() -> _ {
     rocket::build()
         .attach(cors)
         .manage(state)
-        .mount("/", rocket::routes![upload_audio, analyze_medical_text])
+        .mount("/", rocket::routes![upload_audio])
 }
